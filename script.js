@@ -1,10 +1,13 @@
-let excelData = [];
+let phy_grade = [];
+let econ_grade = [];
 
-fetch('data.json')
-    .then(response => response.json())
-    .then(data => {
-        excelData = data;
-    });
+Promise.all([
+    fetch('grade_phy.json').then(res => res.json()),
+    fetch('grade_econ.json').then(res => res.json())
+]).then(([data1, data2]) => {
+    phy_grade = data1;
+    econ_grade = data2;
+});
 
 
 //查詢學號
@@ -13,33 +16,44 @@ document.getElementById('searchButton').addEventListener('click', function () {
     const resultDiv = document.getElementById('result');
 
     if (!studentId) {
-        resultDiv.innerHTML = `<p>請輸入學號！</p>`;
+        resultDiv.innerHTML = `<h2>請輸入學號！</h2>`;
         return;
     }
 
-    const result = excelData.find(row => row['學號'] === studentId);
-
-    if (result) {
-        const quizScore = result['小考成績'] || 0;
-        const midtermScore = result['期中考'] || 0;
-        const weightedScore = quizScore * 0.15 + midtermScore * 0.3;
-
-        if (weightedScore < 30) {
-            resultDiv.innerHTML = `
-                <p>學號：${result['學號']}</p>
-                <p>第一次小考：${quizScore}</p>
-                <p>期中考：${midtermScore}</p>
-                <p style="color: red; font-size: 20px; ">期中預警！</p>
-            `;
-        } else {
-            resultDiv.innerHTML = `
-                <p>學號：${result['學號']}</p>
-                <p>第一次小考：${quizScore}</p>
-                <p>期中考：${midtermScore}</p>
-                <p style="color: green; font-size: 20px;">成績穩定，無需預警。</p>
-            `;
-        }
-    } else {
-        resultDiv.innerHTML = `<p>查無此學號！</p>`;
+    const result_phy = phy_grade.find(row => row['學號'] === studentId);
+    const result_econ = econ_grade.find(row => row['學號'] === studentId);
+    const calculateWarning = (quiz, midterm) =>{
+        const weightedScore = quiz * 0.15 + midterm * 0.3;
+        return weightedScore < 27
+        ? `<p style="color: red; font-size: 20px">期中預警！請注意！</p>`
+        : `<p style="color: green; font-size: 20px">無預警！請繼續保持！</p>`;
     }
+    let output = `<h2>查詢結果：</h2>`;
+
+    if (result_phy || result_econ) {
+        output += `<p>學號：${studentId}</p>`;
+
+        if(result_phy){
+            const quiz = result_phy['小考成績'] || 0;
+            const midterm = result_phy['期中考'] || 0;
+            output += `
+                <h3>科目：心理統計</h3>
+                <p>第一次小考：${quiz}</p>
+                <p>期中考：${midterm}</p>
+                ${calculateWarning(quiz, midterm)}`;
+        }
+
+        if (result_econ) {
+            const quiz = result_econ['小考成績'] || 0;
+            const midterm = result_econ['期中考'] || 0;
+            output += `
+                <h3>科目：經濟學原理：個體篇</h3>
+                <p>第一次小考：${quiz}</p>
+                <p>期中考：${midterm}</p>
+                ${calculateWarning(quiz, midterm)}`;
+        }
+    }
+    else
+        output += `<h2>查無學號！</h2>`;
+    resultDiv.innerHTML = output;
 });
